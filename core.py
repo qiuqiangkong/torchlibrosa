@@ -149,7 +149,7 @@ class DFT(DFTBase):
 class Spectrogram(nn.Module, DFTBase):
     def __init__(self, n_fft=2048, hop_length=None, win_length=None, 
         window='hann', center=True, pad_mode='reflect', power=2.0, 
-        device='cuda', freeze_parameters=True):
+        freeze_parameters=True, device='cuda'):
         """Calculate spectrogram using pytorch on device such as GPU. The 
         STFT is implemented with Conv1d. The function has the same output of 
         librosa.core.stft
@@ -229,7 +229,7 @@ class Spectrogram(nn.Module, DFTBase):
 
 class LogmelFilterBank(nn.Module):
     def __init__(self, sr=32000, n_fft=2048, n_mels=64, fmin=50, fmax=14000, 
-        ref=1.0, amin=1e-10, top_db=80.0, device='cuda', freeze_parameters=True):
+        ref=1.0, amin=1e-10, top_db=80.0, freeze_parameters=True, device='cuda'):
         """Calculate logmel spectrogram using pytorch on device such as GPU. 
         The mel filter bank is the pytorch implementation of as librosa.filters.mel 
         """
@@ -374,10 +374,11 @@ def debug(select):
         # Pytorch
         spectrogram_extractor = Spectrogram(n_fft=n_fft, hop_length=hop_length, 
             win_length=win_length, window=window, center=center, pad_mode=pad_mode, 
-            device=device)
+            freeze_parameters=True, device=device)
         
-        logmel_extractor = LogmelFilterBank(sr=sample_rate, n_fft=n_fft, n_mels=n_mels,
-            fmin=fmin, fmax=fmax, ref=ref, amin=amin, top_db=top_db)
+        logmel_extractor = LogmelFilterBank(sr=sample_rate, n_fft=n_fft, 
+            n_mels=n_mels, fmin=fmin, fmax=fmax, ref=ref, amin=amin, 
+            top_db=top_db, freeze_parameters=True, device=device)
 
         pt_pad = F.pad(pt_data[None, None, :], pad=(n_fft // 2, n_fft // 2), mode=pad_mode)[0, 0]
         print(np.mean(np.abs(np_pad - pt_pad.cpu().numpy())))
@@ -429,10 +430,11 @@ if __name__ == '__main__':
     # Pytorch
     spectrogram_extractor = Spectrogram(n_fft=n_fft, hop_length=hop_length, 
         win_length=win_length, window=window, center=center, pad_mode=pad_mode, 
-        device=device)
+        freeze_parameters=True, device=device)
     
-    logmel_extractor = LogmelFilterBank(sr=sample_rate, n_fft=n_fft, n_mels=n_mels,
-        fmin=fmin, fmax=fmax, ref=ref, amin=amin, top_db=top_db)
+    logmel_extractor = LogmelFilterBank(sr=sample_rate, n_fft=n_fft, 
+        n_mels=n_mels, fmin=fmin, fmax=fmax, ref=ref, amin=amin, top_db=top_db, 
+        freeze_parameters=True, device=device)
 
     # Spectrogram
     pt_spectrogram = spectrogram_extractor.forward(pt_data[None, :])

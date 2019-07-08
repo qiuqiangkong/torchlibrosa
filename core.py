@@ -5,6 +5,7 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.nn.parameter import Parameter
 
 
 class DFTBase(object):
@@ -193,11 +194,11 @@ class Spectrogram(nn.Module, DFTBase):
             groups=1, bias=False)
 
         self.conv_real.weight.data = torch.Tensor(
-            np.real(self.W[:, 0 : out_channels] * fft_window[:, None]).T)[:, None, :].to(device)
+            np.real(self.W[:, 0 : out_channels] * fft_window[:, None]).T)[:, None, :]
         # (n_fft // 2 + 1, 1, n_fft)
 
         self.conv_imag.weight.data = torch.Tensor(
-            np.imag(self.W[:, 0 : out_channels] * fft_window[:, None]).T)[:, None, :].to(device)
+            np.imag(self.W[:, 0 : out_channels] * fft_window[:, None]).T)[:, None, :]
         # (n_fft // 2 + 1, 1, n_fft)
 
         if freeze_parameters:
@@ -233,18 +234,17 @@ class LogmelFilterBank(nn.Module):
         """Calculate logmel spectrogram using pytorch on device such as GPU. 
         The mel filter bank is the pytorch implementation of as librosa.filters.mel 
         """
+        super(LogmelFilterBank, self).__init__()
 
         self.ref = ref
         self.amin = amin
         self.top_db = top_db
 
-        super(LogmelFilterBank, self).__init__()
-
         self.melW = librosa.filters.mel(sr=sr, n_fft=n_fft, n_mels=n_mels,
             fmin=fmin, fmax=fmax).T
         # (n_fft // 2 + 1, mel_bins)
 
-        self.melW = torch.Tensor(self.melW).to(device)
+        self.melW = nn.Parameter(torch.Tensor(self.melW))
 
         if freeze_parameters:
             for param in self.parameters():
@@ -279,6 +279,21 @@ class LogmelFilterBank(nn.Module):
             log_spec = torch.clamp(log_spec, min=log_spec.max() - self.top_db, max=np.inf)
 
         return log_spec
+
+
+class Scalar(nn.Module):
+    def __init__(self, scalar, freeze_parameters):
+        super(Scalar, self).__init__()
+
+        self.scalar_mean = Parameter(torch.Tensor(scalar['mean']))
+        self.scalar_std = Parameter(torch.Tensor(scalar['std']))
+
+        if freeze_parameters:
+            for param in self.parameters():
+                param.requires_grad = False
+
+    def forward(self, input):
+        return (input - self.scalar_mean) / self.scalar_std
 
 
 def debug(select):

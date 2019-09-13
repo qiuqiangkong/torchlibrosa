@@ -27,27 +27,25 @@ class DFTBase(nn.Module):
 
 
 class DFT(DFTBase):
-    def __init__(self, n, norm, device):
-        """Calculate DFT, IDFT, RDFT, IRDFT on device such as GPU. 
+    def __init__(self, n, norm):
+        """Calculate DFT, IDFT, RDFT, IRDFT. 
 
         Args:
           n: fft window size
           norm: None | 'ortho'
-          device: str, e.g.: 'cpu', 'cuda'
         """
         super(DFT, self).__init__()
 
         self.W = self.dft_matrix(n)
         self.inv_W = self.idft_matrix(n)
 
-        self.W_real = torch.Tensor(np.real(self.W)).to(device)
-        self.W_imag = torch.Tensor(np.imag(self.W)).to(device)
-        self.inv_W_real = torch.Tensor(np.real(self.inv_W)).to(device)
-        self.inv_W_imag = torch.Tensor(np.imag(self.inv_W)).to(device)
+        self.W_real = torch.Tensor(np.real(self.W))
+        self.W_imag = torch.Tensor(np.imag(self.W))
+        self.inv_W_real = torch.Tensor(np.real(self.inv_W))
+        self.inv_W_imag = torch.Tensor(np.imag(self.inv_W))
 
         self.n = n
         self.norm = norm
-        self.device = device
 
     def dft(self, x_real, x_imag):
         """Calculate DFT of signal. 
@@ -150,9 +148,8 @@ class DFT(DFTBase):
 class STFT(DFTBase):
     def __init__(self, n_fft=2048, hop_length=None, win_length=None, 
         window='hann', center=True, pad_mode='reflect', freeze_parameters=True):
-        """Calculate spectrogram using pytorch on device such as GPU. The 
-        STFT is implemented with Conv1d. The function has the same output of 
-        librosa.core.stft
+        """Calculate spectrogram using pytorch. The STFT is implemented with 
+        Conv1d. The function has the same output of librosa.core.stft
         """
         super(STFT, self).__init__()
 
@@ -224,32 +221,18 @@ class STFT(DFTBase):
         return real, imag
 
 
-def window_sumsquare(window, n_frames, hop_length=512, win_length=None, n_fft=2048,
-                     dtype=np.float32, norm=None):
-    if win_length is None:
-        win_length = n_fft
-
-    n = n_fft + hop_length * (n_frames - 1)
-    x = np.zeros(n, dtype=dtype)
-
-    # Compute the squared window at the desired length
-    win_sq = librosa.filters.get_window(window, win_length)
-    win_sq = librosa.util.normalize(win_sq, norm=norm)**2
-    win_sq = librosa.util.pad_center(win_sq, n_fft)
-
-    import crash
-    asdf
-
-    # Fill the envelope
-    __window_ss_fill(x, win_sq, n_frames, hop_length)
+def magphase(real, imag):
+    mag = (real ** 2 + imag ** 2) ** 0.5
+    cos = real / mag
+    sin = imag / mag
+    return mag, cos, sin
 
 
 class ISTFT(DFTBase):
     def __init__(self, n_fft=2048, hop_length=None, win_length=None, 
         window='hann', center=True, pad_mode='reflect', freeze_parameters=True):
-        """Calculate spectrogram using pytorch on device such as GPU. The 
-        STFT is implemented with Conv1d. The function has the same output of 
-        librosa.core.stft
+        """Calculate spectrogram using pytorch. The STFT is implemented with 
+        Conv1d. The function has the same output of librosa.core.stft
         """
         super(ISTFT, self).__init__()
 
@@ -274,8 +257,6 @@ class ISTFT(DFTBase):
 
         # Pad the window out to n_fft size
         ifft_window = librosa.util.pad_center(ifft_window, n_fft)
-
-
 
         # DFT & IDFT matrix
         self.W = self.idft_matrix(n_fft) / n_fft
@@ -309,7 +290,7 @@ class ISTFT(DFTBase):
         """
 
         device = next(self.parameters()).device
-        (batch_size, _, time_steps, _) = real_stft.shape
+        batch_size = real_stft.shape[0]
 
         real_stft = real_stft[:, 0, :, :].transpose(1, 2)
         imag_stft = imag_stft[:, 0, :, :].transpose(1, 2)
@@ -338,7 +319,7 @@ class ISTFT(DFTBase):
         s_real = self.conv_real(full_real_stft) - self.conv_imag(full_imag_stft)
 
         # Overlap add
-        for i in range(time_steps):
+        for i in range(n_frames):
             y[:, i * self.hop_length : i * self.hop_length + self.n_fft] += s_real[:, :, i]
 
         ifft_window_sum = librosa.filters.window_sumsquare(self.window, n_frames,
@@ -353,10 +334,10 @@ class ISTFT(DFTBase):
         # Trim or pad to length
         if length is None:
             if self.center:
-                y = y[: int(self.n_fft // 2) : -int(self.n_fft // 2)]
+                y = y[:, self.n_fft // 2 : -self.n_fft // 2]
         else:
             if self.center:
-                start = int(self.n_fft // 2)
+                start = self.n_fft // 2
             else:
                 start = 0
 
@@ -372,9 +353,8 @@ class Spectrogram(nn.Module):
     def __init__(self, n_fft=2048, hop_length=None, win_length=None, 
         window='hann', center=True, pad_mode='reflect', power=2.0, 
         freeze_parameters=True):
-        """Calculate spectrogram using pytorch on device such as GPU. The 
-        STFT is implemented with Conv1d. The function has the same output of 
-        librosa.core.stft
+        """Calculate spectrogram using pytorch. The STFT is implemented with 
+        Conv1d. The function has the same output of librosa.core.stft
         """
         super(Spectrogram, self).__init__()
 
@@ -407,8 +387,8 @@ class Spectrogram(nn.Module):
 class LogmelFilterBank(nn.Module):
     def __init__(self, sr=32000, n_fft=2048, n_mels=64, fmin=50, fmax=14000, is_log=True, 
         ref=1.0, amin=1e-10, top_db=80.0, freeze_parameters=True):
-        """Calculate logmel spectrogram using pytorch on device such as GPU. 
-        The mel filter bank is the pytorch implementation of as librosa.filters.mel 
+        """Calculate logmel spectrogram using pytorch. The mel filter bank is 
+        the pytorch implementation of as librosa.filters.mel 
         """
         super(LogmelFilterBank, self).__init__()
 
@@ -476,17 +456,6 @@ class Scalar(nn.Module):
         return (input - self.scalar_mean) / self.scalar_std
 
 
-def __overlap_add(y, ytmp, hop_length):
-    # numba-accelerated overlap add for inverse stft
-    # y is the pre-allocated output buffer
-    # ytmp is the windowed inverse-stft frames
-    # hop_length is the hop-length of the STFT analysis
-
-    n_fft = ytmp.shape[0]
-    for frame in range(ytmp.shape[1]):
-        sample = frame * hop_length
-        y[sample:(sample + n_fft)] += ytmp[:, frame]
-
 def debug(select):
     """Compare numpy + librosa and pytorch implementation result. For debug. 
 
@@ -497,12 +466,11 @@ def debug(select):
     if select == 'dft':
         n = 10
         norm = None     # None | 'ortho'
-        device = 'cuda' # 'cuda' | 'cpu'
         np.random.seed(0)
 
         # Data
         np_data = np.random.uniform(-1, 1, n)
-        pt_data = torch.Tensor(np_data).to(device)
+        pt_data = torch.Tensor(np_data)
 
         # Numpy FFT
         np_fft = np.fft.fft(np_data, norm=norm)
@@ -511,7 +479,7 @@ def debug(select):
         np_irfft = np.fft.ifft(np_rfft, norm=norm)
 
         # Pytorch FFT
-        obj = DFT(n, norm, device)
+        obj = DFT(n, norm)
         pt_dft = obj.dft(pt_data, torch.zeros_like(pt_data))
         pt_idft = obj.idft(pt_dft[0], pt_dft[1])
         pt_rdft = obj.rdft(pt_data)
@@ -532,7 +500,7 @@ def debug(select):
         
     elif select == 'stft':
         data_length = 32000
-        device = 'cuda' # 'cuda' | 'cpu'
+        device = torch.device('cuda') # 'cuda' | 'cpu'
         np.random.seed(0)
 
         sample_rate = 16000
@@ -576,15 +544,22 @@ def debug(select):
             freeze_parameters=True)
         pt_istft_extractor.to(device)
 
+        # Recover from real and imag part
         pt_istft_s = pt_istft_extractor.forward(pt_stft_real, pt_stft_imag, data_length)[0, :]
 
+        # Recover from magnitude and phase
+        (pt_stft_mag, cos, sin) = magphase(pt_stft_real, pt_stft_imag)
+        pt_istft_s2 = pt_istft_extractor.forward(pt_stft_mag * cos, pt_stft_mag * sin, data_length)[0, :]
+
         print(np.mean(np.abs(np_istft_s - pt_istft_s.data.cpu().numpy())))
+        print(np.mean(np.abs(np_data - pt_istft_s.data.cpu().numpy())))
+        print(np.mean(np.abs(np_data - pt_istft_s2.data.cpu().numpy())))
 
     elif select == 'logmel':
 
         data_length = 32000
         norm = None     # None | 'ortho'
-        device = 'cuda' # 'cuda' | 'cpu'
+        device = torch.device('cuda') # 'cuda' | 'cpu'
         np.random.seed(0)
 
         # Spectrogram parameters

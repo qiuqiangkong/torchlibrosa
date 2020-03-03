@@ -1,17 +1,11 @@
-# Pytorch implementation of Fourier transform of librosa library. 
+# Pytorch implementation of librosa
 
-This codebase implemented discrete Fourier Transform (DFT), inverse DFT as neural network layers in pytorch and can be calculated on GPU. Users can extract log mel spectrogram on GPU. The results are the same as obtained using librosa. The code is developed using pytorch 1.0. 
+This codebase provides PyTorch implementation of some librosa functions. The functions can run on GPU. For example, users can extract log mel spectrogram on GPU. The numerical difference of this codebase and librosa is less than 1e-6.
 
 # Install
 ```
 $ pip install torchlibrosa
 ```
-
-(Try the following command if the above installa command is not successful)
-```
-$ pip3 install -i https://test.pypi.org/simple/ torchlibrosa
-```
-
 
 # Examples
 ```
@@ -39,6 +33,5 @@ istft_extractor = tl.stft.ISTFT(n_fft=1024, hop_length=250)
 y = istft_extractor.forward(real, imag, x.shape[-1])	# (batch_size, samples_num)
 ```
 
-
-# Summary
-This code provides Fourier transform related functions which can be calculated on GPU using pytorch. 
+# Cite
+[1] Kong, Qiuqiang, Yin Cao, Turab Iqbal, Yuxuan Wang, Wenwu Wang, and Mark D. Plumbley. "PANNs: Large-Scale Pretrained Audio Neural Networks for Audio Pattern Recognition." arXiv preprint arXiv:1912.10211 (2019).

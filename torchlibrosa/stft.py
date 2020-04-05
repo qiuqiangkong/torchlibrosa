@@ -243,11 +243,6 @@ class ISTFT(DFTBase):
         if hop_length is None:
             hop_length = int(win_length // 4)
 
-        ifft_window = librosa.filters.get_window(window, win_length, fftbins=True)
-
-        # Pad the window out to n_fft size
-        ifft_window = librosa.util.pad_center(ifft_window, n_fft)
-
         # DFT & IDFT matrix
         self.W = self.idft_matrix(n_fft) / n_fft
 
@@ -259,7 +254,27 @@ class ISTFT(DFTBase):
             kernel_size=1, stride=1, padding=0, dilation=1, 
             groups=1, bias=False)
 
-        
+        self.reverse = nn.Conv1d(in_channels=n_fft // 2 + 1, 
+            out_channels=n_fft // 2 - 1, kernel_size=1, bias=False)
+
+        self.overlap_add = nn.ConvTranspose2d(in_channels=n_fft, 
+            out_channels=1, kernel_size=(n_fft, 1), stride=(self.hop_length, 1), bias=False)
+
+        self.ifft_window_sum = []
+
+        self.init_weights()
+
+        if freeze_parameters:
+            for param in self.parameters():
+                param.requires_grad = False
+
+    def init_weights(self):
+        ifft_window = librosa.filters.get_window(self.window, self.win_length, fftbins=True)
+        """(win_length,)"""
+
+        # Pad the window to n_fft
+        ifft_window = librosa.util.pad_center(ifft_window, self.n_fft)
+
         self.conv_real.weight.data = torch.Tensor(
             np.real(self.W * ifft_window[None, :]).T)[:, :, None]
         # (n_fft // 2 + 1, 1, n_fft)
@@ -267,10 +282,24 @@ class ISTFT(DFTBase):
         self.conv_imag.weight.data = torch.Tensor(
             np.imag(self.W * ifft_window[None, :]).T)[:, :, None]
         # (n_fft // 2 + 1, 1, n_fft)
-        
-        if freeze_parameters:
-            for param in self.parameters():
-                param.requires_grad = False
+
+        tmp = np.zeros((self.n_fft // 2 - 1, self.n_fft // 2 + 1, 1))
+        tmp[:, 1 : -1, 0] = np.array(np.eye(self.n_fft // 2 - 1)[::-1])
+        self.reverse.weight.data = torch.Tensor(tmp)
+        """(n_fft // 2 - 1, n_fft // 2 + 1, 1)"""
+
+        self.overlap_add.weight.data = torch.Tensor(np.eye(self.n_fft)[:, None, :, None])
+        """(n_fft, 1, n_fft, 1)"""
+
+    def get_ifft_window(self, n_frames):
+        device = next(self.parameters()).device
+
+        ifft_window_sum = librosa.filters.window_sumsquare(self.window, n_frames,
+            win_length=self.win_length, n_fft=self.n_fft, hop_length=self.hop_length)
+
+        ifft_window_sum = np.clip(ifft_window_sum, 1e-8, np.inf)
+        ifft_window_sum = torch.Tensor(ifft_window_sum).to(device)
+        return ifft_window_sum
 
     def forward(self, real_stft, imag_stft, length):
         """input: (batch_size, 1, time_steps, n_fft // 2 + 1)
@@ -285,40 +314,24 @@ class ISTFT(DFTBase):
         imag_stft = imag_stft[:, 0, :, :].transpose(1, 2)
         # (batch_size, n_fft // 2 + 1, time_steps)
 
-        # Full stft
-        full_real_stft = torch.cat((real_stft, torch.flip(real_stft[:, 1 : -1, :], dims=[1])), dim=1)
-        full_imag_stft = torch.cat((imag_stft, - torch.flip(imag_stft[:, 1 : -1, :], dims=[1])), dim=1)
-
-        # Reserve space for reconstructed waveform
-        if length:
-            if self.center:
-                padded_length = length + int(self.n_fft)
-            else:
-                padded_length = length
-            n_frames = min(
-                real_stft.shape[2], int(np.ceil(padded_length / self.hop_length)))
-        else:
-            n_frames = real_stft.shape[2]
- 
-        expected_signal_len = self.n_fft + self.hop_length * (n_frames - 1)
-        expected_signal_len = self.n_fft + self.hop_length * (n_frames - 1)
-        y = torch.zeros(batch_size, expected_signal_len).to(device)
+        # Full stft, using flip is not supported by ONNX.
+        # full_real_stft = torch.cat((real_stft, torch.flip(real_stft[:, 1 : -1, :], dims=[1])), dim=1)
+        # full_imag_stft = torch.cat((imag_stft, - torch.flip(imag_stft[:, 1 : -1, :], dims=[1])), dim=1)
+        full_real_stft = torch.cat((real_stft, self.reverse(real_stft)), dim=1)
+        full_imag_stft = torch.cat((imag_stft, - self.reverse(imag_stft)), dim=1)
+        """(1, n_fft, time_steps)"""
 
         # IDFT
         s_real = self.conv_real(full_real_stft) - self.conv_imag(full_imag_stft)
+        s_real = s_real[..., None]  # (1, n_fft, time_steps, 1)
+        y = self.overlap_add(s_real)[:, 0, :, 0]    # (1, samples_num)
 
-        # Overlap add
-        for i in range(n_frames):
-            y[:, i * self.hop_length : i * self.hop_length + self.n_fft] += s_real[:, :, i]
-
-        ifft_window_sum = librosa.filters.window_sumsquare(self.window, n_frames,
-            win_length=self.win_length, n_fft=self.n_fft, hop_length=self.hop_length)
-
-        approx_nonzero_indices = np.where(ifft_window_sum > librosa.util.tiny(ifft_window_sum))[0]
-        approx_nonzero_indices = torch.LongTensor(approx_nonzero_indices).to(device)
-        ifft_window_sum = torch.Tensor(ifft_window_sum).to(device)
-        
-        y[:, approx_nonzero_indices] /= ifft_window_sum[approx_nonzero_indices][None, :]
+        # Divide window
+        if len(self.ifft_window_sum) != y.shape[1]:
+            frames_num = real_stft.shape[2]
+            self.ifft_window_sum = self.get_ifft_window(frames_num)
+            
+        y = y / self.ifft_window_sum[None, 0 : y.shape[1]]
 
         # Trim or pad to length
         if length is None:
@@ -334,7 +347,7 @@ class ISTFT(DFTBase):
             (batch_size, len_y) = y.shape
             if y.shape[-1] < length:
                 y = torch.cat((y, torch.zeros(batch_size, length - len_y).to(device)), dim=-1)
-
+        
         return y
         
 

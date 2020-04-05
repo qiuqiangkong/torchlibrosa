@@ -33,5 +33,10 @@ istft_extractor = tl.stft.ISTFT(n_fft=1024, hop_length=250)
 y = istft_extractor.forward(real, imag, x.shape[-1])	# (batch_size, samples_num)
 ```
 
+# More examples
+```
+python3 torchlibrosa/stft.py
+```
+
 # Cite
 [1] Kong, Qiuqiang, Yin Cao, Turab Iqbal, Yuxuan Wang, Wenwu Wang, and Mark D. Plumbley. "PANNs: Large-Scale Pretrained Audio Neural Networks for Audio Pattern Recognition." arXiv preprint arXiv:1912.10211 (2019).

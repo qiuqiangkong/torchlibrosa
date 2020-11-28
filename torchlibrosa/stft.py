@@ -147,18 +147,21 @@ class STFT(DFTBase):
         assert pad_mode in ['constant', 'reflect']
 
         self.n_fft = n_fft
+        self.hop_length = hop_length
+        self.win_length = win_length
+        self.window = window
         self.center = center
         self.pad_mode = pad_mode
 
         # By default, use the entire frame
-        if win_length is None:
-            win_length = n_fft
+        if self.win_length is None:
+            self.win_length = n_fft
 
         # Set the default hop, if it's not already specified
-        if hop_length is None:
-            hop_length = int(win_length // 4)
+        if self.hop_length is None:
+            self.hop_length = int(self.win_length // 4)
 
-        fft_window = librosa.filters.get_window(window, win_length, fftbins=True)
+        fft_window = librosa.filters.get_window(window, self.win_length, fftbins=True)
 
         # Pad the window out to n_fft size
         fft_window = librosa.util.pad_center(fft_window, n_fft)
@@ -169,11 +172,11 @@ class STFT(DFTBase):
         out_channels = n_fft // 2 + 1
 
         self.conv_real = nn.Conv1d(in_channels=1, out_channels=out_channels, 
-            kernel_size=n_fft, stride=hop_length, padding=0, dilation=1, 
+            kernel_size=n_fft, stride=self.hop_length, padding=0, dilation=1, 
             groups=1, bias=False)
 
         self.conv_imag = nn.Conv1d(in_channels=1, out_channels=out_channels, 
-            kernel_size=n_fft, stride=hop_length, padding=0, dilation=1, 
+            kernel_size=n_fft, stride=self.hop_length, padding=0, dilation=1, 
             groups=1, bias=False)
 
         self.conv_real.weight.data = torch.Tensor(
@@ -236,12 +239,12 @@ class ISTFT(DFTBase):
         self.pad_mode = pad_mode
 
         # By default, use the entire frame
-        if win_length is None:
-            win_length = n_fft
+        if self.win_length is None:
+            self.win_length = self.n_fft
 
         # Set the default hop, if it's not already specified
-        if hop_length is None:
-            hop_length = int(win_length // 4)
+        if self.hop_length is None:
+            self.hop_length = int(self.win_length // 4)
 
         # DFT & IDFT matrix
         self.W = self.idft_matrix(n_fft) / n_fft
@@ -449,11 +452,6 @@ class Enframe(nn.Module):
         """
         super(Enframe, self).__init__()
 
-        '''
-        self.enframe_conv = nn.Conv1d(in_channels=1, out_channels=frame_length, 
-            kernel_size=frame_length, stride=hop_length, 
-            padding=frame_length // 2, bias=False)
-        '''
         self.enframe_conv = nn.Conv1d(in_channels=1, out_channels=frame_length, 
             kernel_size=frame_length, stride=hop_length, 
             padding=0, bias=False)

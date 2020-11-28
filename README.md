@@ -8,6 +8,9 @@ $ pip install torchlibrosa
 ```
 
 # Examples
+
+Here are examples of extracting spectrogram, log mel spectrogram, STFT and ISTFT using torchlibrosa.
+
 ```
 import torch
 import torchlibrosa as tl
@@ -39,4 +42,4 @@ python3 torchlibrosa/stft.py
 ```
 
 # Cite
-[1] Kong, Qiuqiang, Yin Cao, Turab Iqbal, Yuxuan Wang, Wenwu Wang, and Mark D. Plumbley. "PANNs: Large-Scale Pretrained Audio Neural Networks for Audio Pattern Recognition." arXiv preprint arXiv:1912.10211 (2019).
+[1] Qiuqiang Kong, Yin Cao, Turab Iqbal, Yuxuan Wang, Wenwu Wang, and Mark D. Plumbley. "PANNs: Large-scale pretrained audio neural networks for audio pattern recognition." IEEE/ACM Transactions on Audio, Speech, and Language Processing 28 (2020): 2880-2894.

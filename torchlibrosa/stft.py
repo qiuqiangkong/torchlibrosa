@@ -134,10 +134,10 @@ class DFT(DFTBase):
             z_real /= math.sqrt(n)
 
         return z_real
-        
+
 
 class STFT(DFTBase):
-    def __init__(self, n_fft=2048, hop_length=None, win_length=None, 
+    def __init__(self, n_fft=2048, hop_length=None, win_length=None,
         window='hann', center=True, pad_mode='reflect', freeze_parameters=True):
         """Implementation of STFT with Conv1d. The function has the same output 
         of librosa.core.stft
@@ -171,12 +171,12 @@ class STFT(DFTBase):
 
         out_channels = n_fft // 2 + 1
 
-        self.conv_real = nn.Conv1d(in_channels=1, out_channels=out_channels, 
-            kernel_size=n_fft, stride=self.hop_length, padding=0, dilation=1, 
+        self.conv_real = nn.Conv1d(in_channels=1, out_channels=out_channels,
+            kernel_size=n_fft, stride=self.hop_length, padding=0, dilation=1,
             groups=1, bias=False)
 
-        self.conv_imag = nn.Conv1d(in_channels=1, out_channels=out_channels, 
-            kernel_size=n_fft, stride=self.hop_length, padding=0, dilation=1, 
+        self.conv_imag = nn.Conv1d(in_channels=1, out_channels=out_channels,
+            kernel_size=n_fft, stride=self.hop_length, padding=0, dilation=1,
             groups=1, bias=False)
 
         self.conv_real.weight.data = torch.Tensor(
@@ -222,7 +222,7 @@ def magphase(real, imag):
 
 
 class ISTFT(DFTBase):
-    def __init__(self, n_fft=2048, hop_length=None, win_length=None, 
+    def __init__(self, n_fft=2048, hop_length=None, win_length=None,
         window='hann', center=True, pad_mode='reflect', freeze_parameters=True):
         """Implementation of ISTFT with Conv1d. The function has the same output 
         of librosa.core.istft
@@ -249,18 +249,18 @@ class ISTFT(DFTBase):
         # DFT & IDFT matrix
         self.W = self.idft_matrix(n_fft) / n_fft
 
-        self.conv_real = nn.Conv1d(in_channels=n_fft, out_channels=n_fft, 
-            kernel_size=1, stride=1, padding=0, dilation=1, 
+        self.conv_real = nn.Conv1d(in_channels=n_fft, out_channels=n_fft,
+            kernel_size=1, stride=1, padding=0, dilation=1,
             groups=1, bias=False)
 
-        self.conv_imag = nn.Conv1d(in_channels=n_fft, out_channels=n_fft, 
-            kernel_size=1, stride=1, padding=0, dilation=1, 
+        self.conv_imag = nn.Conv1d(in_channels=n_fft, out_channels=n_fft,
+            kernel_size=1, stride=1, padding=0, dilation=1,
             groups=1, bias=False)
 
-        self.reverse = nn.Conv1d(in_channels=n_fft // 2 + 1, 
+        self.reverse = nn.Conv1d(in_channels=n_fft // 2 + 1,
             out_channels=n_fft // 2 - 1, kernel_size=1, bias=False)
 
-        self.overlap_add = nn.ConvTranspose2d(in_channels=n_fft, 
+        self.overlap_add = nn.ConvTranspose2d(in_channels=n_fft,
             out_channels=1, kernel_size=(n_fft, 1), stride=(self.hop_length, 1), bias=False)
 
         self.ifft_window_sum = []
@@ -333,7 +333,7 @@ class ISTFT(DFTBase):
         if len(self.ifft_window_sum) != y.shape[1]:
             frames_num = real_stft.shape[2]
             self.ifft_window_sum = self.get_ifft_window(frames_num)
-            
+
         y = y / self.ifft_window_sum[None, 0 : y.shape[1]]
 
         # Trim or pad to length
@@ -350,13 +350,13 @@ class ISTFT(DFTBase):
             (batch_size, len_y) = y.shape
             if y.shape[-1] < length:
                 y = torch.cat((y, torch.zeros(batch_size, length - len_y).to(device)), dim=-1)
-        
+
         return y
-        
+
 
 class Spectrogram(nn.Module):
-    def __init__(self, n_fft=2048, hop_length=None, win_length=None, 
-        window='hann', center=True, pad_mode='reflect', power=2.0, 
+    def __init__(self, n_fft=2048, hop_length=None, win_length=None,
+        window='hann', center=True, pad_mode='reflect', power=2.0,
         freeze_parameters=True):
         """Calculate spectrogram using pytorch. The STFT is implemented with 
         Conv1d. The function has the same output of librosa.core.stft
@@ -365,8 +365,8 @@ class Spectrogram(nn.Module):
 
         self.power = power
 
-        self.stft = STFT(n_fft=n_fft, hop_length=hop_length, 
-            win_length=win_length, window=window, center=center, 
+        self.stft = STFT(n_fft=n_fft, hop_length=hop_length,
+            win_length=win_length, window=window, center=center,
             pad_mode=pad_mode, freeze_parameters=True)
 
     def forward(self, input):
@@ -383,13 +383,13 @@ class Spectrogram(nn.Module):
         if self.power == 2.0:
             pass
         else:
-            spectrogram = spectrogram ** (power / 2.0)
+            spectrogram = spectrogram ** (self.power / 2.0)
 
         return spectrogram
 
 
 class LogmelFilterBank(nn.Module):
-    def __init__(self, sr=32000, n_fft=2048, n_mels=64, fmin=50, fmax=14000, is_log=True, 
+    def __init__(self, sr=32000, n_fft=2048, n_mels=64, fmin=0.0, fmax=None, is_log=True,
         ref=1.0, amin=1e-10, top_db=80.0, freeze_parameters=True):
         """Calculate logmel spectrogram using pytorch. The mel filter bank is 
         the pytorch implementation of as librosa.filters.mel 
@@ -400,6 +400,9 @@ class LogmelFilterBank(nn.Module):
         self.ref = ref
         self.amin = amin
         self.top_db = top_db
+        if fmax == None:
+            fmax = sr//2
+
 
         self.melW = librosa.filters.mel(sr=sr, n_fft=n_fft, n_mels=n_mels,
             fmin=fmin, fmax=fmax).T
@@ -439,7 +442,7 @@ class LogmelFilterBank(nn.Module):
 
         if self.top_db is not None:
             if self.top_db < 0:
-                raise ParameterError('top_db must be non-negative')
+                raise librosa.util.exceptions.ParameterError('top_db must be non-negative')
             log_spec = torch.clamp(log_spec, min=log_spec.max().item() - self.top_db, max=np.inf)
 
         return log_spec
@@ -452,8 +455,8 @@ class Enframe(nn.Module):
         """
         super(Enframe, self).__init__()
 
-        self.enframe_conv = nn.Conv1d(in_channels=1, out_channels=frame_length, 
-            kernel_size=frame_length, stride=hop_length, 
+        self.enframe_conv = nn.Conv1d(in_channels=1, out_channels=frame_length,
+            kernel_size=frame_length, stride=hop_length,
             padding=0, bias=False)
 
         self.enframe_conv.weight.data = torch.Tensor(torch.eye(frame_length)[:, None, :])
@@ -478,7 +481,7 @@ class Enframe(nn.Module):
 
         if self.top_db is not None:
             if self.top_db < 0:
-                raise ParameterError('top_db must be non-negative')
+                raise librosa.util.exceptions.ParameterError('top_db must be non-negative')
             log_spec = torch.clamp(log_spec, min=log_spec.max() - self.top_db, max=np.inf)
 
         return log_spec
@@ -540,7 +543,7 @@ def debug(select, device):
         print(np.mean((np.abs(np.imag(np_rfft) - pt_rdft[1].cpu().numpy()))))
 
         print(np.mean(np.abs(np_data - pt_irdft.cpu().numpy())))
-        
+
     elif select == 'stft':
         data_length = 32000
         device = torch.device(device)
@@ -560,12 +563,12 @@ def debug(select, device):
         pt_data = torch.Tensor(np_data).to(device)
 
         # Numpy stft matrix
-        np_stft_matrix = librosa.core.stft(y=np_data, n_fft=n_fft, 
+        np_stft_matrix = librosa.core.stft(y=np_data, n_fft=n_fft,
             hop_length=hop_length, window=window, center=center).T
 
         # Pytorch stft matrix
-        pt_stft_extractor = STFT(n_fft=n_fft, hop_length=hop_length, 
-            win_length=win_length, window=window, center=center, pad_mode=pad_mode, 
+        pt_stft_extractor = STFT(n_fft=n_fft, hop_length=hop_length,
+            win_length=win_length, window=window, center=center, pad_mode=pad_mode,
             freeze_parameters=True)
 
         pt_stft_extractor.to(device)
@@ -578,12 +581,12 @@ def debug(select, device):
         print(np.mean(np.abs(np.imag(np_stft_matrix) - pt_stft_imag.data.cpu().numpy()[0, 0])))
 
         # Numpy istft
-        np_istft_s = librosa.core.istft(stft_matrix=np_stft_matrix.T, 
+        np_istft_s = librosa.core.istft(stft_matrix=np_stft_matrix.T,
             hop_length=hop_length, window=window, center=center, length=data_length)
 
         # Pytorch istft
-        pt_istft_extractor = ISTFT(n_fft=n_fft, hop_length=hop_length, 
-            win_length=win_length, window=window, center=center, pad_mode=pad_mode, 
+        pt_istft_extractor = ISTFT(n_fft=n_fft, hop_length=hop_length,
+            win_length=win_length, window=window, center=center, pad_mode=pad_mode,
             freeze_parameters=True)
         pt_istft_extractor.to(device)
 
@@ -631,8 +634,8 @@ def debug(select, device):
             'spectrogram. All numbers below should be close to 0.')
 
         # Numpy librosa
-        np_stft_matrix = librosa.core.stft(y=np_data, n_fft=n_fft, hop_length=hop_length, 
-            win_length=win_length, window=window, center=center, dtype=dtype, 
+        np_stft_matrix = librosa.core.stft(y=np_data, n_fft=n_fft, hop_length=hop_length,
+            win_length=win_length, window=window, center=center, dtype=dtype,
             pad_mode=pad_mode)
 
         np_pad = np.pad(np_data, int(n_fft // 2), mode=pad_mode)
@@ -646,12 +649,12 @@ def debug(select, device):
             np_mel_spectrogram, ref=ref, amin=amin, top_db=top_db)
 
         # Pytorch
-        stft_extractor = STFT(n_fft=n_fft, hop_length=hop_length, 
-            win_length=win_length, window=window, center=center, pad_mode=pad_mode, 
+        stft_extractor = STFT(n_fft=n_fft, hop_length=hop_length,
+            win_length=win_length, window=window, center=center, pad_mode=pad_mode,
             freeze_parameters=True)
-        
-        logmel_extractor = LogmelFilterBank(sr=sample_rate, n_fft=n_fft, 
-            n_mels=n_mels, fmin=fmin, fmax=fmax, ref=ref, amin=amin, 
+
+        logmel_extractor = LogmelFilterBank(sr=sample_rate, n_fft=n_fft,
+            n_mels=n_mels, fmin=fmin, fmax=fmax, ref=ref, amin=amin,
             top_db=top_db, freeze_parameters=True)
 
         stft_extractor.to(device)
@@ -666,8 +669,8 @@ def debug(select, device):
         print(np.mean(np.abs(np.imag(np_stft_matrix) - pt_stft_matrix_imag.data.cpu().numpy())))
 
         # Spectrogram
-        spectrogram_extractor = Spectrogram(n_fft=n_fft, hop_length=hop_length, 
-            win_length=win_length, window=window, center=center, pad_mode=pad_mode, 
+        spectrogram_extractor = Spectrogram(n_fft=n_fft, hop_length=hop_length,
+            win_length=win_length, window=window, center=center, pad_mode=pad_mode,
             freeze_parameters=True)
 
         spectrogram_extractor.to(device)
@@ -688,7 +691,7 @@ def debug(select, device):
         # Spectrogram parameters
         hop_length = 250
         win_length = 1024
-        
+
         # Data
         np_data = np.random.uniform(-1, 1, data_length)
         pt_data = torch.Tensor(np_data).to(device)
@@ -697,7 +700,7 @@ def debug(select, device):
             'librosa.util.frame. All numbers below should be close to 0.')
 
         # Numpy librosa
-        np_frames = librosa.util.frame(np_data, frame_length=win_length, 
+        np_frames = librosa.util.frame(np_data, frame_length=win_length,
             hop_length=hop_length)
 
         # Pytorch
@@ -706,6 +709,46 @@ def debug(select, device):
 
         pt_frames = pt_frame_extractor(pt_data[None, :])
         print(np.mean(np.abs(np_frames - pt_frames.data.cpu().numpy())))
+    elif select == 'default':
+        data_length = 32000
+        sample_rate = 16000
+        device = torch.device(device)
+        np.random.seed(0)
+
+        # Spectrogram parameters
+        hop_length = 250
+        win_length = 1024
+        n_mels = 64
+
+        # Data
+        np_data = np.random.uniform(-1, 1, data_length)
+        pt_data = torch.Tensor(np_data).to(device)
+        feature_extractor = nn.Sequential(
+            Spectrogram(
+                hop_length=hop_length,
+                win_length=win_length,
+            ), LogmelFilterBank(
+                sr=sample_rate,
+                n_mels=n_mels,
+                is_log=False, #Default is true
+            ))
+
+        print(
+            'Comparing default mel spectrogram from librosa to the pytorch implementation.'
+        )
+
+        # Numpy librosa
+        np_melspect = librosa.feature.melspectrogram(np_data,
+                                                     hop_length=hop_length,
+                                                     sr=sample_rate,
+                                                     win_length=win_length,
+                                                     n_mels=n_mels).T
+        #Pytorch
+        pt_melspect = feature_extractor(pt_data[None, :]).squeeze()
+        passed = np.allclose(pt_melspect.data.to('cpu').numpy(), np_melspect)
+        print(f"Passed? {passed}")
+
+
 
 
 if __name__ == '__main__':
@@ -738,12 +781,12 @@ if __name__ == '__main__':
     pt_data = torch.Tensor(np_data).to(device)
 
     # Pytorch
-    spectrogram_extractor = Spectrogram(n_fft=n_fft, hop_length=hop_length, 
-        win_length=win_length, window=window, center=center, pad_mode=pad_mode, 
+    spectrogram_extractor = Spectrogram(n_fft=n_fft, hop_length=hop_length,
+        win_length=win_length, window=window, center=center, pad_mode=pad_mode,
         freeze_parameters=True)
-    
-    logmel_extractor = LogmelFilterBank(sr=sample_rate, n_fft=n_fft, 
-        n_mels=n_mels, fmin=fmin, fmax=fmax, ref=ref, amin=amin, top_db=top_db, 
+
+    logmel_extractor = LogmelFilterBank(sr=sample_rate, n_fft=n_fft,
+        n_mels=n_mels, fmin=fmin, fmax=fmax, ref=ref, amin=amin, top_db=top_db,
         freeze_parameters=True)
 
     spectrogram_extractor.to(device)
@@ -757,6 +800,7 @@ if __name__ == '__main__':
 
     # Uncomment for debug
     if True:
+        debug(select='default', device=device)
         debug(select='dft', device=device)
         debug(select='stft', device=device)
         debug(select='logmel', device=device)

@@ -1,6 +1,6 @@
 # Pytorch implementation of librosa
 
-This codebase provides PyTorch implementation of some librosa functions. The functions can run on GPU. For example, users can extract log mel spectrogram on GPU. The numerical difference of this codebase and librosa is less than 1e-6.
+This codebase provides PyTorch implementation of some librosa functions. The functions can run on GPU. For example, users can extract log mel spectrogram on GPU. The numerical difference between this codebase and librosa is less than 1e-6.
 
 # Install
 ```bash
@@ -16,23 +16,23 @@ import torch
 import torchlibrosa as tl
 
 # Data
-x = torch.zeros(1, 32000)	# (batch_size, samples_num)
+x = torch.zeros(1, 22050)	# (batch_size, samples_num)
 
 # Spectrogram
-spectrogram_extractor = tl.stft.Spectrogram(n_fft=1024, hop_length=250)
+spectrogram_extractor = tl.stft.Spectrogram(n_fft=2048, hop_length=512)
 sp = spectrogram_extractor.forward(x)	# (batch_size, 1, time_steps, freq_bins)
 
 # Log mel spectrogram
-logmel_extractor = tl.stft.LogmelFilterBank(sr=32000, n_fft=1024, n_mels=64)
+logmel_extractor = tl.stft.LogmelFilterBank(sr=22050, n_fft=2048, n_mels=128)
 logmel = logmel_extractor.forward(sp)	# (batch_size, 1, time_steps, freq_bins)
 
 # STFT
-stft_extractor = tl.stft.STFT(n_fft=1024, hop_length=250)
+stft_extractor = tl.stft.STFT(n_fft=2048, hop_length=512)
 (real, imag) = stft_extractor.forward(x)
-"""real: (batch_size, 1, time_steps, freq_bins), imag: (batch_size, 1, time_steps, freq_bins)"""
+# real: (batch_size, 1, time_steps, freq_bins), imag: (batch_size, 1, time_steps, freq_bins) #
 
 # ISTFT
-istft_extractor = tl.stft.ISTFT(n_fft=1024, hop_length=250)
+istft_extractor = tl.stft.ISTFT(n_fft=2048, hop_length=512)
 y = istft_extractor.forward(real, imag, x.shape[-1])	# (batch_size, samples_num)
 ```
 
@@ -51,12 +51,12 @@ If one you previously used for training cpu-extracted features from librosa, but
 import torch
 import torchlibrosa as tl
 
-sample_rate=16000
-win_length=640
-hop_length=320
-n_mels=128
+sample_rate = 22050
+win_length = 2048
+hop_length = 512
+n_mels = 128
 
-raw_audio = torch.empty(sample_rate).uniform_(-1,1) #Float32 input with normalized scale (-1,1)
+raw_audio = torch.empty(sample_rate).uniform_(-1, 1) #Float32 input with normalized scale (-1, 1)
 
 #Torchlibrosa feature extractor similar to librosa.feature.melspectrogram()
 feature_extractor = torch.nn.Sequential(
@@ -68,7 +68,7 @@ feature_extractor = torch.nn.Sequential(
         n_mels=n_mels,
         is_log=False, #Default is true
     ))
-feature = feature_extractor(raw_audio.unsqueeze(0)) # Shape is (Batch,1,T,N_Mels)
+feature = feature_extractor(raw_audio.unsqueeze(0)) # Shape is (Batch, 1, T, N_Mels)
 ```
 
 # Cite

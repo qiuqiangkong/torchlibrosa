@@ -1,13 +1,13 @@
 # TorchLibrosa: PyTorch implementation of Librosa
 
-This codebase provides PyTorch implementation of some librosa functions. If users previously used for training cpu-extracted features from librosa, but want to add GPU acceleration during training and evaluation, TorchLibrosa will provide identical features to standard torchlibrosa functions.
+This codebase provides PyTorch implementation of some librosa functions. If users previously used for training cpu-extracted features from librosa, but want to add GPU acceleration during training and evaluation, TorchLibrosa will provide almost identical features to standard torchlibrosa functions (numerical difference less than 1e-5).
 
-# Install
+## Install
 ```bash
 $ pip install torchlibrosa
 ```
 
-# Examples 1
+## Examples 1
 
 Extract Log mel spectrogram with TorchLibrosa:
 
@@ -36,7 +36,7 @@ feature_extractor = torch.nn.Sequential(
 batch_feature = feature_extractor(batch_audio) # (batch_size, 1, time_steps, mel_bins)
 ```
 
-# Examples 2
+## Examples 2
 
 Extracting spectrogram, then log mel spectrogram, STFT and ISTFT with TorchLibrosa:
 
@@ -70,13 +70,16 @@ istft_extractor = tl.ISTFT(n_fft=win_length, hop_length=hop_length)
 y = istft_extractor.forward(real, imag, length=batch_audio.shape[-1])    # (batch_size, samples_num)
 ```
 
-# Example 3
+## Example 3
 
-Check the compability to Librosa as follows. The numerical difference between TorchLibrosa and Librosa should be less than 1e-5.
+Check the compability of TorchLibrosa to Librosa. The numerical difference should be less than 1e-5.
 
 ```python
 python3 torchlibrosa/stft.py --device='cuda'    # --device='cpu' | 'cuda'
 ```
 
-# Cite
+## Contact
+Qiuqiang Kong, qiuqiangkong@gmail.com
+
+## Cite
 [1] Qiuqiang Kong, Yin Cao, Turab Iqbal, Yuxuan Wang, Wenwu Wang, and Mark D. Plumbley. "PANNs: Large-scale pretrained audio neural networks for audio pattern recognition." IEEE/ACM Transactions on Audio, Speech, and Language Processing 28 (2020): 2880-2894.

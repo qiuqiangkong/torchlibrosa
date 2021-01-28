@@ -1,74 +1,81 @@
-# Pytorch implementation of librosa
+# TorchLibrosa: PyTorch implementation of Librosa
 
-This codebase provides PyTorch implementation of some librosa functions. The functions can run on GPU. For example, users can extract log mel spectrogram on GPU. The numerical difference between this codebase and librosa is less than 1e-6.
+This codebase provides PyTorch implementation of some librosa functions. If users previously used for training cpu-extracted features from librosa, but want to add GPU acceleration during training and evaluation, TorchLibrosa will provide identical features to standard torchlibrosa functions.
 
 # Install
 ```bash
 $ pip install torchlibrosa
 ```
 
-# Examples
+# Examples 1
 
-Here are examples of extracting spectrogram, log mel spectrogram, STFT and ISTFT using torchlibrosa.
+Extract Log mel spectrogram with TorchLibrosa:
 
 ```python
 import torch
 import torchlibrosa as tl
 
-# Data
-x = torch.zeros(1, 22050)	# (batch_size, samples_num)
-
-# Spectrogram
-spectrogram_extractor = tl.stft.Spectrogram(n_fft=2048, hop_length=512)
-sp = spectrogram_extractor.forward(x)	# (batch_size, 1, time_steps, freq_bins)
-
-# Log mel spectrogram
-logmel_extractor = tl.stft.LogmelFilterBank(sr=22050, n_fft=2048, n_mels=128)
-logmel = logmel_extractor.forward(sp)	# (batch_size, 1, time_steps, freq_bins)
-
-# STFT
-stft_extractor = tl.stft.STFT(n_fft=2048, hop_length=512)
-(real, imag) = stft_extractor.forward(x)
-# real: (batch_size, 1, time_steps, freq_bins), imag: (batch_size, 1, time_steps, freq_bins) #
-
-# ISTFT
-istft_extractor = tl.stft.ISTFT(n_fft=2048, hop_length=512)
-y = istft_extractor.forward(real, imag, x.shape[-1])	# (batch_size, samples_num)
-```
-
-# More examples
-
-```python
-python3 torchlibrosa/stft.py
-```
-
-# Compability to librosa functions
-
-If one you previously used for training cpu-extracted features from librosa, but want to add GPU acceleration during i.e., evaluation, then note that the following code will provide identical features to standard mel spectrograms:
-
-```python
-## Librosa implementation
-import torch
-import torchlibrosa as tl
-
+batch_size = 16
 sample_rate = 22050
 win_length = 2048
 hop_length = 512
 n_mels = 128
 
-raw_audio = torch.empty(sample_rate).uniform_(-1, 1) #Float32 input with normalized scale (-1, 1)
+batch_audio = torch.empty(batch_size, sample_rate).uniform_(-1, 1)  # (batch_size, sample_rate)
 
-#Torchlibrosa feature extractor similar to librosa.feature.melspectrogram()
+# TorchLibrosa feature extractor the same as librosa.feature.melspectrogram()
 feature_extractor = torch.nn.Sequential(
-    tl.stft.Spectrogram(
+    tl.Spectrogram(
         hop_length=hop_length,
         win_length=win_length,
-    ), tl.stft.LogmelFilterBank(
+    ), tl.LogmelFilterBank(
         sr=sample_rate,
         n_mels=n_mels,
-        is_log=False, #Default is true
+        is_log=False, # Default is true
     ))
-feature = feature_extractor(raw_audio.unsqueeze(0)) # Shape is (Batch, 1, T, N_Mels)
+batch_feature = feature_extractor(batch_audio) # (batch_size, 1, time_steps, mel_bins)
+```
+
+# Examples 2
+
+Extracting spectrogram, then log mel spectrogram, STFT and ISTFT with TorchLibrosa:
+
+```python
+import torch
+import torchlibrosa as tl
+
+batch_size = 16
+sample_rate = 22050
+win_length = 2048
+hop_length = 512
+n_mels = 128
+
+batch_audio = torch.empty(batch_size, sample_rate).uniform_(-1, 1)  # (batch_size, sample_rate)
+
+# Spectrogram
+spectrogram_extractor = tl.Spectrogram(n_fft=win_length, hop_length=hop_length)
+sp = spectrogram_extractor.forward(batch_audio)   # (batch_size, 1, time_steps, freq_bins)
+
+# Log mel spectrogram
+logmel_extractor = tl.LogmelFilterBank(sr=sample_rate, n_fft=win_length, n_mels=n_mels)
+logmel = logmel_extractor.forward(sp)   # (batch_size, 1, time_steps, mel_bins)
+
+# STFT
+stft_extractor = tl.STFT(n_fft=win_length, hop_length=hop_length)
+(real, imag) = stft_extractor.forward(batch_audio)
+# real: (batch_size, 1, time_steps, freq_bins), imag: (batch_size, 1, time_steps, freq_bins) #
+
+# ISTFT
+istft_extractor = tl.ISTFT(n_fft=win_length, hop_length=hop_length)
+y = istft_extractor.forward(real, imag, length=batch_audio.shape[-1])    # (batch_size, samples_num)
+```
+
+# Example 3
+
+Check the compability to Librosa as follows. The numerical difference between TorchLibrosa and Librosa should be less than 1e-5.
+
+```python
+python3 torchlibrosa/stft.py --device='cuda'    # --device='cpu' | 'cuda'
 ```
 
 # Cite

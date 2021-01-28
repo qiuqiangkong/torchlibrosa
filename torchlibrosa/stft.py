@@ -1,7 +1,7 @@
-import numpy as np
+import argparse
 import librosa
 import math
-import argparse
+import numpy as np
 
 import torch
 import torch.nn as nn
@@ -11,7 +11,7 @@ from torch.nn.parameter import Parameter
 
 class DFTBase(nn.Module):
     def __init__(self):
-        """Base class for DFT and IDFT matrix"""
+        """Base class for DFT and IDFT matrix."""
         super(DFTBase, self).__init__()
 
     def dft_matrix(self, n):
@@ -30,6 +30,7 @@ class DFTBase(nn.Module):
 class DFT(DFTBase):
     def __init__(self, n, norm):
         """Calculate DFT, IDFT, RDFT, IRDFT. 
+
         Args:
           n: fft window size
           norm: None | 'ortho'
@@ -48,10 +49,12 @@ class DFT(DFTBase):
         self.norm = norm
 
     def dft(self, x_real, x_imag):
-        """Calculate DFT of signal. 
+        """Calculate DFT of signal.
+
         Args:
           x_real: (n,), signal real part
           x_imag: (n,), signal imag part
+
         Returns:
           z_real: (n,), output real part
           z_imag: (n,), output imag part
@@ -70,10 +73,12 @@ class DFT(DFTBase):
         return z_real, z_imag
 
     def idft(self, x_real, x_imag):
-        """Calculate IDFT of signal. 
+        """Calculate IDFT of signal.
+
         Args:
           x_real: (n,), signal real part
           x_imag: (n,), signal imag part
+
         Returns:
           z_real: (n,), output real part
           z_imag: (n,), output imag part
@@ -91,9 +96,11 @@ class DFT(DFTBase):
 
     def rdft(self, x_real):
         """Calculate right DFT of signal. 
+
         Args:
           x_real: (n,), signal real part
           x_imag: (n,), signal imag part
+
         Returns:
           z_real: (n // 2 + 1,), output real part
           z_imag: (n // 2 + 1,), output imag part
@@ -111,10 +118,12 @@ class DFT(DFTBase):
         return z_real, z_imag
 
     def irdft(self, x_real, x_imag):
-        """Calculate inverse right DFT of signal. 
+        """Calculate inverse right DFT of signal.
+
         Args:
           x_real: (n // 2 + 1,), signal real part
           x_imag: (n // 2 + 1,), signal imag part
+
         Returns:
           z_real: (n,), output real part
           z_imag: (n,), output imag part
@@ -141,7 +150,7 @@ class STFT(DFTBase):
     def __init__(self, n_fft=2048, hop_length=None, win_length=None,
         window='hann', center=True, pad_mode='reflect', freeze_parameters=True):
         """Implementation of STFT with Conv1d. The function has the same output 
-        of librosa.core.stft
+        of librosa.core.stft.
         """
         super(STFT, self).__init__()
 
@@ -193,7 +202,11 @@ class STFT(DFTBase):
                 param.requires_grad = False
 
     def forward(self, input):
-        """input: (batch_size, data_length)
+        """Calculate STFT of signals.
+
+        Args: 
+          input: (batch_size, data_length), input signals.
+
         Returns:
           real: (batch_size, n_fft // 2 + 1, time_steps)
           imag: (batch_size, n_fft // 2 + 1, time_steps)
@@ -226,7 +239,7 @@ class ISTFT(DFTBase):
     def __init__(self, n_fft=2048, hop_length=None, win_length=None,
         window='hann', center=True, pad_mode='reflect', freeze_parameters=True):
         """Implementation of ISTFT with Conv1d. The function has the same output 
-        of librosa.core.istft
+        of librosa.core.istft.
         """
         super(ISTFT, self).__init__()
 
@@ -274,7 +287,7 @@ class ISTFT(DFTBase):
 
     def init_weights(self):
         ifft_window = librosa.filters.get_window(self.window, self.win_length, fftbins=True)
-        """(win_length,)"""
+        # (win_length,) #
 
         # Pad the window to n_fft
         ifft_window = librosa.util.pad_center(ifft_window, self.n_fft)
@@ -290,14 +303,14 @@ class ISTFT(DFTBase):
         tmp = np.zeros((self.n_fft // 2 - 1, self.n_fft // 2 + 1, 1))
         tmp[:, 1 : -1, 0] = np.array(np.eye(self.n_fft // 2 - 1)[::-1])
         self.reverse.weight.data = torch.Tensor(tmp)
-        """(n_fft // 2 - 1, n_fft // 2 + 1, 1)"""
+        # (n_fft // 2 - 1, n_fft // 2 + 1, 1) #
 
         self.overlap_add.weight.data = torch.Tensor(np.eye(self.n_fft)[:, None, :, None])
-        """(n_fft, 1, n_fft, 1)"""
+        # (n_fft, 1, n_fft, 1) #
 
-    def get_ifft_window(self, n_frames):
-        device = next(self.parameters()).device
-
+    def get_ifft_window(self, n_frames, device):
+        """Get tensor to be divided by signal after overlap-add.
+        """
         ifft_window_sum = librosa.filters.window_sumsquare(self.window, n_frames,
             win_length=self.win_length, n_fft=self.n_fft, hop_length=self.hop_length)
 
@@ -306,12 +319,18 @@ class ISTFT(DFTBase):
         return ifft_window_sum
 
     def forward(self, real_stft, imag_stft, length):
-        """input: (batch_size, 1, time_steps, n_fft // 2 + 1)
+        """Calculate inverse STFT.
+
+        Args:
+          real_stft: (batch_size, channels=1, time_steps, n_fft // 2 + 1)
+          imag_stft: (batch_size, channels=1, time_steps, n_fft // 2 + 1)
+          length: int
+
         Returns:
-          real: (batch_size, data_length)
+          real: (batch_size, data_length), output signals.
         """
         assert real_stft.ndimension() == 4 and imag_stft.ndimension() == 4
-        device = next(self.parameters()).device
+        device = real_stft.device
         batch_size = real_stft.shape[0]
 
         real_stft = real_stft[:, 0, :, :].transpose(1, 2)
@@ -323,19 +342,20 @@ class ISTFT(DFTBase):
         # full_imag_stft = torch.cat((imag_stft, - torch.flip(imag_stft[:, 1 : -1, :], dims=[1])), dim=1)
         full_real_stft = torch.cat((real_stft, self.reverse(real_stft)), dim=1)
         full_imag_stft = torch.cat((imag_stft, - self.reverse(imag_stft)), dim=1)
-        """(1, n_fft, time_steps)"""
+        # (batch_size, n_fft, time_steps) #
 
         # IDFT
         s_real = self.conv_real(full_real_stft) - self.conv_imag(full_imag_stft)
-        s_real = s_real[..., None]  # (1, n_fft, time_steps, 1)
-        y = self.overlap_add(s_real)[:, 0, :, 0]    # (1, samples_num)
+        s_real = s_real[..., None]  # (batch_size, n_fft, time_steps, 1)
+        y = self.overlap_add(s_real)[:, 0, :, 0]    # (batch_size, samples_num)
 
-        # Divide window
+        # Divide signals by a sumsquare window
         if len(self.ifft_window_sum) != y.shape[1]:
             frames_num = real_stft.shape[2]
-            self.ifft_window_sum = self.get_ifft_window(frames_num)
+            self.ifft_window_sum = self.get_ifft_window(frames_num, device)
 
         y = y / self.ifft_window_sum[None, 0 : y.shape[1]]
+        # (batch_size, samples_num) #
 
         # Trim or pad to length
         if length is None:
@@ -371,7 +391,11 @@ class Spectrogram(nn.Module):
             pad_mode=pad_mode, freeze_parameters=True)
 
     def forward(self, input):
-        """input: (batch_size, 1, time_steps, n_fft // 2 + 1)
+        """Calculate spectrogram of input signals.
+
+        Args: 
+          input: (batch_size, data_length)
+
         Returns:
           spectrogram: (batch_size, 1, time_steps, n_fft // 2 + 1)
         """
@@ -416,9 +440,13 @@ class LogmelFilterBank(nn.Module):
                 param.requires_grad = False
 
     def forward(self, input):
-        """input: (batch_size, channels, time_steps)
+        """Calculate (log) mel spectrogram from spectrogram.
+
+        Args:
+          input: (*, n_fft), spectrogram
         
-        Output: (batch_size, time_steps, mel_bins)
+        Returns: 
+          output: (*, mel_bins), (log) mel spectrogram
         """
 
         # Mel spectrogram
@@ -464,9 +492,13 @@ class Enframe(nn.Module):
         self.enframe_conv.weight.requires_grad = False
 
     def forward(self, input):
-        """input: (batch_size, samples)
+        """Enframe signals into frames.
+
+        Args:
+          input: (batch_size, samples)
         
-        Output: (batch_size, window_length, frames_num)
+        Returns: 
+          output: (batch_size, window_length, frames_num)
         """
         output = self.enframe_conv(input[:, None, :])
         return output

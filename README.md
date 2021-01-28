@@ -9,7 +9,7 @@ $ pip install torchlibrosa
 
 ## Examples 1
 
-Extract Log mel spectrogram with TorchLibrosa:
+Extract Log mel spectrogram with TorchLibrosa.
 
 ```python
 import torch
@@ -38,7 +38,7 @@ batch_feature = feature_extractor(batch_audio) # (batch_size, 1, time_steps, mel
 
 ## Examples 2
 
-Extracting spectrogram, then log mel spectrogram, STFT and ISTFT with TorchLibrosa:
+Extracting spectrogram, then log mel spectrogram, STFT and ISTFT with TorchLibrosa.
 
 ```python
 import torch

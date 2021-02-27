@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="torchlibrosa",
-    version="0.0.7",
+    version="0.0.8",
     author="Qiuqiang Kong",
     author_email="qiuqiangkong@gmail.com",
     description="PyTorch implemention of part of librosa functions.",
@@ -17,6 +17,10 @@ setuptools.setup(
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
+    ],
+    install_requires=[
+        'numpy',
+        'librosa=0.8.0'
     ],
     python_requires='>=3.6',
 )

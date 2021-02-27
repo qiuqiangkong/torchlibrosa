@@ -83,3 +83,13 @@ Qiuqiang Kong, qiuqiangkong@gmail.com
 
 ## Cite
 [1] Qiuqiang Kong, Yin Cao, Turab Iqbal, Yuxuan Wang, Wenwu Wang, and Mark D. Plumbley. "PANNs: Large-scale pretrained audio neural networks for audio pattern recognition." IEEE/ACM Transactions on Audio, Speech, and Language Processing 28 (2020): 2880-2894.
+
+## External links
+Other related repos include:
+
+torchaudio: https://github.com/pytorch/audio
+
+Asteroid-filterbanks: https://github.com/asteroid-team/asteroid-filterbanks
+
+Kapre: https://github.com/keunwoochoi/kapre
+

@@ -1007,6 +1007,7 @@ def debug(select, device):
         # Data
         np_data = np.random.uniform(-1, 1, data_length)
         pt_data = torch.Tensor(np_data).to(device)
+
         feature_extractor = nn.Sequential(
             Spectrogram(
                 hop_length=hop_length,
@@ -1016,6 +1017,7 @@ def debug(select, device):
                 n_mels=n_mels,
                 is_log=False, #Default is true
             ))
+
         feature_extractor.to(device)
 
         print(
@@ -1089,8 +1091,12 @@ if __name__ == '__main__':
 
     # Uncomment for debug
     if True:
-        debug(select='default', device=device)
         debug(select='dft', device=device)
         debug(select='stft', device=device)
         debug(select='logmel', device=device)
         debug(select='enframe', device=device)
+
+        try:
+            debug(select='default', device=device)
+        except:
+            raise Exception('Please use librosa>=0.7.0!')

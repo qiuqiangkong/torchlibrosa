@@ -504,9 +504,17 @@ class ISTFT(DFTBase):
         ifft_window_sum = self._get_ifft_window(frames_num)
         # (audio_samples,)
 
-        min_mask = ifft_window_sum.abs() < 1e-11
-        y[:, ~min_mask] = y[:, ~min_mask] / ifft_window_sum[None, ~min_mask]
-        # (batch_size, audio_samples)
+        # Following code is abandaned for divide overlap-add window, because
+        # not supported by half precision training and ONNX.
+        # min_mask = ifft_window_sum.abs() < 1e-11
+        # y[:, ~min_mask] = y[:, ~min_mask] / ifft_window_sum[None, ~min_mask]
+        # # (batch_size, audio_samples)
+
+        ifft_window_sum = torch.clamp(ifft_window_sum, 1e-11, np.inf)
+        # (audio_samples,)
+
+        y = y / ifft_window_sum[None, :]
+        # (batch_size, audio_samples,)
 
         return y
 
@@ -855,8 +863,8 @@ def debug(select, device):
 
         (pt_stft_real, pt_stft_imag) = pt_stft_extractor.forward(pt_data[None, :])
 
-        print('Comparing librosa and pytorch implementation of DFT. All numbers '
-            'below should be close to 0.')
+        print('Comparing librosa and pytorch implementation of STFT & ISTFT. \
+            All numbers below should be close to 0.')
         print(np.mean(np.abs(np.real(np_stft_matrix) - pt_stft_real.data.cpu().numpy()[0, 0])))
         print(np.mean(np.abs(np.imag(np_stft_matrix) - pt_stft_imag.data.cpu().numpy()[0, 0])))
 
@@ -1099,4 +1107,5 @@ if __name__ == '__main__':
         try:
             debug(select='default', device=device)
         except:
-            raise Exception('Please use librosa>=0.7.0!')
+            raise Exception('Torchlibrosa does support librosa>=0.6.0, for \
+                comparison with librosa, please use librosa>=0.7.0!')

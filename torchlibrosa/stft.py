@@ -721,9 +721,9 @@ class LogmelFilterBank(nn.Module):
         librosa.power_to_lb
         """
         ref_value = self.ref
-        log_spec = 10.0 * torch.log10(torch.clamp(input, min=self.amin, max=np.inf))
-        log_spec -= 10.0 * np.log10(np.maximum(self.amin, ref_value))
-
+        log_spec = 10.0 * torch.log(torch.clamp(input, min=self.amin, max=np.inf)) / np.log(10.0)
+        log_spec -= 10.0 * np.log(np.maximum(self.amin, ref_value)) / np.log(10.0)
+        
         if self.top_db is not None:
             if self.top_db < 0:
                 raise librosa.util.exceptions.ParameterError('top_db must be non-negative')
@@ -763,8 +763,8 @@ class Enframe(nn.Module):
         librosa.power_to_lb.
         """
         ref_value = self.ref
-        log_spec = 10.0 * torch.log10(torch.clamp(input, min=self.amin, max=np.inf))
-        log_spec -= 10.0 * np.log10(np.maximum(self.amin, ref_value))
+        log_spec = 10.0 * torch.log(torch.clamp(input, min=self.amin, max=np.inf)) / np.log(10.0)
+        log_spec -= 10.0 * np.log(np.maximum(self.amin, ref_value)) / np.log(10.0)
 
         if self.top_db is not None:
             if self.top_db < 0:

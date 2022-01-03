@@ -359,7 +359,7 @@ class ISTFT(DFTBase):
         # (win_length,)
 
         ola_window = librosa.util.normalize(ola_window, norm=None) ** 2
-        ola_window = librosa.util.pad_center(ola_window, self.n_fft)
+        ola_window = librosa.util.pad_center(ola_window, self.win_length)
         ola_window = torch.Tensor(ola_window)
 
         self.register_buffer('ola_window', ola_window)
@@ -619,10 +619,10 @@ class ISTFT(DFTBase):
         # Trim or pad to length
         if length is None:
             if self.center:
-                y = y[:, self.n_fft // 2 : -self.n_fft // 2]
+                y = y[:, self.win_length // 2 : -self.win_length // 2]
         else:
             if self.center:
-                start = self.n_fft // 2
+                start = self.win_length // 2
             else:
                 start = 0
 

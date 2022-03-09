@@ -20,7 +20,7 @@ setuptools.setup(
     ],
     install_requires=[
         'numpy',
-        'librosa>=0.6.0'
+        'librosa>=0.9.0'
     ],
     python_requires='>=3.6',
 )

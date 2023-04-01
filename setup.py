@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="torchlibrosa",
-    version="0.0.9",
+    version="0.1.0",
     author="Qiuqiang Kong",
     author_email="qiuqiangkong@gmail.com",
     description="PyTorch implemention of part of librosa functions.",

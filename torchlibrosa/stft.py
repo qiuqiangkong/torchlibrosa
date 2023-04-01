@@ -190,7 +190,7 @@ class STFT(DFTBase):
         fft_window = librosa.filters.get_window(window, self.win_length, fftbins=True)
 
         # Pad the window out to n_fft size.
-        fft_window = librosa.util.pad_center(fft_window, size=n_fft)
+        fft_window = librosa.util.pad_center(data=fft_window, size=n_fft)
 
         # DFT & IDFT matrix.
         self.W = self.dft_matrix(n_fft)
@@ -341,7 +341,7 @@ class ISTFT(DFTBase):
         # (win_length,)
 
         # Pad the window to n_fft
-        ifft_window = librosa.util.pad_center(ifft_window, size=self.n_fft)
+        ifft_window = librosa.util.pad_center(data=ifft_window, size=self.n_fft)
 
         self.conv_real.weight.data = torch.Tensor(
             np.real(self.W * ifft_window[None, :]).T)[:, :, None]
@@ -359,7 +359,7 @@ class ISTFT(DFTBase):
         # (win_length,)
 
         ola_window = librosa.util.normalize(ola_window, norm=None) ** 2
-        ola_window = librosa.util.pad_center(ola_window, size=self.n_fft)
+        ola_window = librosa.util.pad_center(data=ola_window, size=self.n_fft)
         ola_window = torch.Tensor(ola_window)
 
         self.register_buffer('ola_window', ola_window)
@@ -844,7 +844,8 @@ def debug(select, device):
         win_length = 2048
         window = 'hann'
         center = True
-        pad_mode = 'reflect'
+        pad_mode = 'reflect'  # Align with 'reflect' for librosa<=0.8.0.
+                               # Align with 'constant' for librosa>=0.9.0
 
         # Data
         np_data = np.random.uniform(-1, 1, data_length)
@@ -852,7 +853,9 @@ def debug(select, device):
 
         # Numpy stft matrix
         np_stft_matrix = librosa.stft(y=np_data, n_fft=n_fft,
-            hop_length=hop_length, window=window, center=center).T
+            hop_length=hop_length, window=window, center=center, 
+            pad_mode=pad_mode,
+        ).T
 
         # Pytorch stft matrix
         pt_stft_extractor = STFT(n_fft=n_fft, hop_length=hop_length,
@@ -870,7 +873,9 @@ def debug(select, device):
 
         # Numpy istft
         np_istft_s = librosa.istft(stft_matrix=np_stft_matrix.T,
-            hop_length=hop_length, window=window, center=center, length=data_length)
+            hop_length=hop_length, window=window, center=center, 
+            length=data_length,
+        )
 
         # Pytorch istft
         pt_istft_extractor = ISTFT(n_fft=n_fft, hop_length=hop_length,
@@ -1008,6 +1013,7 @@ def debug(select, device):
         data_length = sample_rate * 1
         hop_length = 512
         win_length = 2048
+        pad_mode = 'reflect'
 
         # Mel parameters (the same as librosa.feature.melspectrogram)
         n_mels = 128
@@ -1033,16 +1039,18 @@ def debug(select, device):
         )
 
         # Numpy librosa
-        np_melspect = librosa.feature.melspectrogram(np_data,
-                                                     hop_length=hop_length,
-                                                     sr=sample_rate,
-                                                     win_length=win_length,
-                                                     n_mels=n_mels).T
+        np_melspect = librosa.feature.melspectrogram(
+            y=np_data,
+            hop_length=hop_length,
+            sr=sample_rate,
+            win_length=win_length,
+            n_mels=n_mels,
+            pad_mode=pad_mode,
+        ).T
+
         #Pytorch
         pt_melspect = feature_extractor(pt_data[None, :]).squeeze()
-        passed = np.allclose(pt_melspect.data.to('cpu').numpy(), np_melspect)
-        print(f"Passed? {passed}")
-
+        print(np.mean(np.abs(np_melspect - pt_melspect.data.cpu().numpy())))
 
 
 if __name__ == '__main__':
@@ -1103,9 +1111,4 @@ if __name__ == '__main__':
         debug(select='stft', device=device)
         debug(select='logmel', device=device)
         debug(select='enframe', device=device)
-
-        try:
-            debug(select='default', device=device)
-        except:
-            raise Exception('Torchlibrosa does support librosa>=0.6.0, for \
-                comparison with librosa, please use librosa>=0.7.0!')
+        debug(select='default', device=device)

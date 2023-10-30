@@ -677,8 +677,8 @@ class LogmelFilterBank(nn.Module):
         super(LogmelFilterBank, self).__init__()
 
         self.is_log = is_log
-        self.ref = ref
-        self.amin = amin
+        self.ref = torch.tensor(ref)
+        self.amin = torch.tensor(amin)
         self.top_db = top_db
         if fmax == None:
             fmax = sr//2
@@ -722,7 +722,7 @@ class LogmelFilterBank(nn.Module):
         """
         ref_value = self.ref
         log_spec = 10.0 * torch.log10(torch.clamp(input, min=self.amin, max=np.inf))
-        log_spec -= 10.0 * np.log10(np.maximum(self.amin, ref_value))
+        log_spec -= 10.0 * torch.log10(torch.max(self.amin, ref_value))
 
         if self.top_db is not None:
             if self.top_db < 0:

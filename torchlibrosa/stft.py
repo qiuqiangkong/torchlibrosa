@@ -286,7 +286,7 @@ def magphase(real, imag):
         cos: tensor, cosine of phases of signals
         sin: tensor, sine of phases of signals
     """
-    mag = (real ** 2 + imag ** 2) ** 0.5
+    mag = (real**2 + imag**2) ** 0.5
     cos = real / torch.clamp(mag, 1e-10, np.inf)
     sin = imag / torch.clamp(mag, 1e-10, np.inf)
 
@@ -766,7 +766,7 @@ class Spectrogram(nn.Module):
         (real, imag) = self.stft.forward(input)
         # (batch_size, n_fft // 2 + 1, time_steps)
 
-        spectrogram = real ** 2 + imag ** 2
+        spectrogram = real**2 + imag**2
 
         if self.power == 2.0:
             pass
@@ -987,7 +987,12 @@ def debug(select, device):
 
         # Numpy stft matrix
         np_stft_matrix = librosa.stft(
-            y=np_data, n_fft=n_fft, hop_length=hop_length, window=window, center=center
+            y=np_data,
+            n_fft=n_fft,
+            hop_length=hop_length,
+            window=window,
+            center=center,
+            pad_mode=pad_mode,
         ).T
 
         # Pytorch stft matrix
@@ -1006,8 +1011,8 @@ def debug(select, device):
         (pt_stft_real, pt_stft_imag) = pt_stft_extractor.forward(pt_data[None, :])
 
         print(
-            "Comparing librosa and pytorch implementation of STFT & ISTFT. \
-            All numbers below should be close to 0."
+            "Comparing librosa and pytorch implementation of STFT & ISTFT.            "
+            " All numbers below should be close to 0."
         )
         print(
             np.mean(
@@ -1253,7 +1258,8 @@ def debug(select, device):
         feature_extractor.to(device)
 
         print(
-            "Comparing default mel spectrogram from librosa to the pytorch implementation."
+            "Comparing default mel spectrogram from librosa to the pytorch"
+            " implementation."
         )
 
         # Numpy librosa
@@ -1271,7 +1277,6 @@ def debug(select, device):
 
 
 if __name__ == "__main__":
-
     parser = argparse.ArgumentParser(description="")
     parser.add_argument("--device", type=str, default="cpu", choices=["cpu", "cuda"])
     args = parser.parse_args()
@@ -1347,6 +1352,6 @@ if __name__ == "__main__":
             debug(select="default", device=device)
         except:
             raise Exception(
-                "Torchlibrosa does support librosa>=0.6.0, for \
-                comparison with librosa, please use librosa>=0.7.0!"
+                "Torchlibrosa does support librosa>=0.6.0, for                "
+                " comparison with librosa, please use librosa>=0.7.0!"
             )

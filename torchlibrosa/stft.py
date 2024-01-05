@@ -1235,6 +1235,7 @@ def debug(select, device):
         data_length = sample_rate * 1
         hop_length = 512
         win_length = 2048
+        pad_mode = "reflect"
 
         # Mel parameters (the same as librosa.feature.melspectrogram)
         n_mels = 128
@@ -1269,6 +1270,7 @@ def debug(select, device):
             sr=sample_rate,
             win_length=win_length,
             n_mels=n_mels,
+            pad_mode=pad_mode,
         ).T
         # Pytorch
         pt_melspect = feature_extractor(pt_data[None, :]).squeeze()

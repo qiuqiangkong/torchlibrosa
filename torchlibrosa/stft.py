@@ -207,11 +207,11 @@ class STFT(DFTBase):
 
         # Initialize Conv1d weights.
         self.conv_real.weight.data = torch.Tensor(
-            np.real(self.W[:, 0 : out_channels] * fft_window[:, None]).T)[:, None, :]
+            np.real(self.W[:, 0 : out_channels] * fft_window[:, None]).T)[:, None, :].contiguous()
         # (n_fft // 2 + 1, 1, n_fft)
 
         self.conv_imag.weight.data = torch.Tensor(
-            np.imag(self.W[:, 0 : out_channels] * fft_window[:, None]).T)[:, None, :]
+            np.imag(self.W[:, 0 : out_channels] * fft_window[:, None]).T)[:, None, :].contiguous()
         # (n_fft // 2 + 1, 1, n_fft)
 
         if freeze_parameters:
@@ -344,11 +344,11 @@ class ISTFT(DFTBase):
         ifft_window = librosa.util.pad_center(data=ifft_window, size=self.n_fft)
 
         self.conv_real.weight.data = torch.Tensor(
-            np.real(self.W * ifft_window[None, :]).T)[:, :, None]
+            np.real(self.W * ifft_window[None, :]).T)[:, :, None].contiguous()
         # (n_fft // 2 + 1, 1, n_fft)
 
         self.conv_imag.weight.data = torch.Tensor(
-            np.imag(self.W * ifft_window[None, :]).T)[:, :, None]
+            np.imag(self.W * ifft_window[None, :]).T)[:, :, None].contiguous()
         # (n_fft // 2 + 1, 1, n_fft)
 
     def init_overlap_add_window(self):
@@ -380,7 +380,7 @@ class ISTFT(DFTBase):
 
         tmp = np.zeros((self.n_fft // 2 - 1, self.n_fft // 2 + 1, 1))
         tmp[:, 1 : -1, 0] = np.array(np.eye(self.n_fft // 2 - 1)[::-1])
-        self.reverse.weight.data = torch.Tensor(tmp)
+        self.reverse.weight.data = torch.Tensor(tmp).contiguous()
         # (n_fft // 2 - 1, n_fft // 2 + 1, 1)
 
         # Use nn.ConvTranspose2d to implement torch.nn.functional.fold(), 
@@ -388,7 +388,7 @@ class ISTFT(DFTBase):
         self.overlap_add = nn.ConvTranspose2d(in_channels=self.n_fft,
             out_channels=1, kernel_size=(self.n_fft, 1), stride=(self.hop_length, 1), bias=False)
 
-        self.overlap_add.weight.data = torch.Tensor(np.eye(self.n_fft)[:, None, :, None])
+        self.overlap_add.weight.data = torch.Tensor(np.eye(self.n_fft)[:, None, :, None]).contiguous()
         # (n_fft, 1, n_fft, 1)
 
         if frames_num:
@@ -743,7 +743,7 @@ class Enframe(nn.Module):
             kernel_size=frame_length, stride=hop_length,
             padding=0, bias=False)
 
-        self.enframe_conv.weight.data = torch.Tensor(torch.eye(frame_length)[:, None, :])
+        self.enframe_conv.weight.data = torch.Tensor(torch.eye(frame_length)[:, None, :]).contiguous()
         self.enframe_conv.weight.requires_grad = False
 
     def forward(self, input):
